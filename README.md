@@ -1,4 +1,4 @@
-# Song Popularity Prediction
+# Song Popularity Prediction for Indian Songs
 
 ## Overview
 This project aims to predict the popularity of songs based on their features using machine learning models. The dataset includes various attributes like danceability, energy, tempo, and more, extracted from audio data. The project evaluates different regression models to identify the best-performing approach for predicting song popularity.
