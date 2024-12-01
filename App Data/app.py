@@ -1,91 +1,96 @@
-from flask import Flask, render_template, request, redirect, url_for
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-import pickle
+from flask import Flask, request, render_template
+import joblib
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
-# Spotify API credentials
-client_id = 'd19759ecd1234dacb94b5091a1cb585e'
-client_secret = '7954c247fd0c48d596f2fa84f1d2c9b8'
+# Load the saved model and scaler
+model = joblib.load('best_model.joblib')
+scaler = joblib.load('standard_scaler.joblib')  # Ensure you save your scaler during preprocessing and load it here
 
-# Authenticate with Spotify
-auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-sp = spotipy.Spotify(auth_manager=auth_manager)
-
-# Load the regression model
-with open('best_random_forest_model.pkl', 'rb') as file:
-    model = pickle.load(file)
+# Genre Mapping
+genre_mapping = {
+    'bhajan': 0, 'bhangra': 1, 'carnatic': 2, 'carnatic vocal': 3, 'chutney': 4, 
+    'classic bhangra': 5, 'classic bollywood': 6, 'classic kollywood': 7, 'filmi': 8, 
+    'ghazal': 9, 'hare krishna': 10, 'hindustani classical': 11, 'hindustani instrumental': 12, 
+    'hip hop': 13, 'indian classical': 14, 'jain bhajan': 15, 'kollywood': 16, 'lata': 17, 
+    'mantra': 18, 'modern bollywood': 19, 'odia pop': 20, 'pop': 21, 'punjabi pop': 22, 
+    'rap': 23, 'rock': 24, 'sandalwood': 25, 'sufi': 26, 'tamil devotional': 27, 
+    'tamil pop': 28, 'tollywood': 29
+}
 
 # Initialize Flask app
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return render_template('home.html')
+    # Render the input form page
+    return render_template('index.html', genres=genre_mapping.keys())
 
-@app.route('/search', methods=['POST'])
-def search():
-    search_query = request.form['search_query']
-    results = sp.search(q=search_query, type='track', limit=5)
-    tracks = []
-    for item in results['tracks']['items']:
-        tracks.append({
-            'name': item['name'],
-            'artist': ', '.join([artist['name'] for artist in item['artists']]),
-            'album': item['album']['name'],
-            'release_date': item['album']['release_date'],
-            'id': item['id']
-        })
-    return render_template('search_results.html', tracks=tracks, search_query=search_query)
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        # Feature names as per your dataset
+        feature_names = [
+            'danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness',
+            'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo',
+            'duration_sec', 'genre_encoded'
+        ]
 
-@app.route('/check_popularity/<track_id>')
-def check_popularity(track_id):
-    # Fetch audio features for the track
-    audio_features = sp.audio_features([track_id])[0]
-    if audio_features:
-        features = np.array([[audio_features['danceability'], audio_features['energy'],
-                              audio_features['key'], audio_features['loudness'],
-                              audio_features['mode'], audio_features['speechiness'],
-                              audio_features['acousticness'], audio_features['instrumentalness'],
-                              audio_features['liveness'], audio_features['valence'],
-                              audio_features['tempo'], audio_features['duration_ms'],
-                              audio_features['time_signature']]])
+        # Extract inputs
+        features = [
+            float(request.form['danceability']),
+            float(request.form['energy']),
+            int(request.form['key']),
+            float(request.form['loudness']),
+            int(request.form['mode']),
+            float(request.form['speechiness']),
+            float(request.form['acousticness']),
+            float(request.form['instrumentalness']),
+            float(request.form['liveness']),
+            float(request.form['valence']),
+            float(request.form['tempo']),
+            float(request.form['duration_sec']),
+            genre_mapping[request.form['genre']]  # Map genre to encoded value
+        ]
+
+        # Scale the features
+        input_features = scaler.transform([features])
+
         # Predict popularity
-        predicted_popularity = model.predict(features)[0]
-        return render_template('popularity_result.html', popularity=predicted_popularity, track_id=track_id)
-    else:
-        return render_template('popularity_result.html', error="Audio features not found for this track.")
+        prediction = model.predict(input_features)
 
-@app.route('/predict_custom', methods=['GET', 'POST'])
-def predict_custom():
-    if request.method == 'POST':
-        try:
-            # Get input values from the form
-            danceability = float(request.form['danceability'])
-            energy = float(request.form['energy'])
-            key = int(request.form['key'])
-            loudness = float(request.form['loudness'])
-            mode = int(request.form['mode'])
-            speechiness = float(request.form['speechiness'])
-            acousticness = float(request.form['acousticness'])
-            instrumentalness = float(request.form['instrumentalness'])
-            liveness = float(request.form['liveness'])
-            valence = float(request.form['valence'])
-            tempo = float(request.form['tempo'])
-            duration_ms = int(request.form['duration_ms'])
-            time_signature = int(request.form['time_signature'])
+        # Return the prediction result
+        return render_template(
+            'index.html',
+            genres=genre_mapping.keys(),
+            prediction_text=f"Predicted Popularity: {prediction[0]:.2f}"
+        )
+    except Exception as e:
+        return render_template(
+            'index.html',
+            genres=genre_mapping.keys(),
+            error_text=f"Error: {str(e)}"
+        )
 
-            # Create feature array
-            features = np.array([[danceability, energy, key, loudness, mode,
-                                  speechiness, acousticness, instrumentalness,
-                                  liveness, valence, tempo, duration_ms, time_signature]])
-            
-            # Make prediction
-            popularity = model.predict(features)[0]
-            return render_template('custom_predict.html', prediction_text=f'Predicted Popularity: {popularity:.2f}')
-        except Exception as e:
-            return render_template('custom_predict.html', prediction_text=f'Error: {e}')
-    return render_template('custom_predict.html')
+@app.route('/features')
+def features():
+    # Render the features information page
+    feature_info = {
+        "danceability": "Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity.",
+        "energy": "Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity.",
+        "key": "The key the track is in. Integers map to pitches using standard Pitch Class notation.",
+        "loudness": "The overall loudness of a track in decibels (dB).",
+        "mode": "The modality of the track: 1 for major, 0 for minor.",
+        "speechiness": "Speechiness detects the presence of spoken words in a track.",
+        "acousticness": "A confidence measure from 0.0 to 1.0 of whether the track is acoustic.",
+        "instrumentalness": "Predicts whether a track contains no vocals.",
+        "liveness": "Detects the presence of an audience in the recording.",
+        "valence": "A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track.",
+        "tempo": "The overall estimated tempo of a track in beats per minute (BPM).",
+        "duration_sec": "The duration of the track in seconds.",
+        "genre": "The genre of the track, represented as a category mapped to an encoded value."
+    }
+    return render_template('features.html', feature_info=feature_info)
 
 if __name__ == '__main__':
     app.run(debug=True)
