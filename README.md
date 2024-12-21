@@ -49,50 +49,57 @@ The dataset contains the following key features:
   - **Random Forest Regressor**: Ensemble method to handle non-linear relationships.
   - **Gradient Boosting Regressor**: Sequential ensemble method for better accuracy.
 
-### 3. Hyperparameter Tuning
-- Use predefined hyperparameters for Random Forest:
-  - `n_estimators=200`
-  - `max_depth=10`
-  - `min_samples_split=2`
-  - `min_samples_leaf=4`
-- Use predefined hyperparameters for Gradient Boosting:
-  - `subsample=1.0`
-  - `n_estimators=100`
-  - `max_depth=5`
-  - `learning_rate=0.1`
+### 3. Models Evaluated
+- **Linear Regression**: A simple baseline model.
+- **Random Forest**: Ensemble-based model for robust predictions.
+- **Gradient Boosting**: Best-performing model with a test R² of 0.781.
 
-### 4. Model Evaluation
-Evaluate models using:
-- **Mean Squared Error (MSE)**: Measures prediction errors.
-- **R-Squared (R²)**: Proportion of variance explained by the model.
+### Model Evaluation Metrics
+- **Mean Squared Error (MSE)**
+- **R-squared (R²)**
+- **Mean Absolute Error (MAE)**
+   
+### 4. Deployment
+Run the Flask application to provide song popularity predictions:
+```bash
+python app.py
+```
+Access the web application at `http://127.0.0.1:5000/`.
 
-### 5. Save the Best Model
-- Save the best-performing model using `joblib` for future use.
+---
+
+## Flask Web Application
+The web application includes the following pages:
+- **Home**: Input song features to predict popularity.
+- **Results**: Displays predicted popularity based on the input features.
+
+---
 
 ## Results
-- **Random Forest** achieved the best performance with:
-  - Train R²: 0.81
-  - Test R²: 0.76
-- The model was saved as `best_model.joblib`.
 
-## Usage
-1. Clone the repository and set up the environment.
-2. Run the preprocessing script to prepare the dataset.
-3. Train the models and evaluate performance.
-4. Use the saved model for predictions:
-   ```python
-   import joblib
-   model = joblib.load('best_model.joblib')
-   sample_input = [[0.5, 0.7, 5, -10.0, 1, 0.05, 0.3, 0.0, 0.15, 0.8, 120.0, 300000, 4]]
-   prediction = model.predict(scaler.transform(sample_input))
-   print("Predicted Popularity:", prediction[0])
-   ```
+| Model              | Test R²  | Test MSE | Test MAE |
+|--------------------|----------|----------|----------|
+| Gradient Boosting  | 0.781    | 94.85    | 6.99     |
+| Random Forest      | 0.773    | 98.44    | 7.04     |
+| Linear Regression  | 0.268    | 317.37   | 14.37    |
 
-## Future Enhancements
-- Include additional features like lyrics-based sentiment analysis.
-- Experiment with deep learning models such as neural networks.
-- Deploy the model as an API for real-time predictions.
+---
 
-## Author
-This project was developed as part of a data science workflow for predicting song popularity. Contributions and feedback are welcome!
+## Future Work
+- Incorporate lyrics and cultural attributes for deeper insights.
+- Expand the dataset to include more years and genres.
+- Optimize the web application interface for real-time predictions.
+
+---
+
+## Contributing
+Contributions are welcome! Please submit a pull request or open an issue for improvements.
+
+---
+
+## Acknowledgments
+- **Spotify API**: For providing comprehensive metadata and audio features.
+- **Scikit-learn**: For machine learning model development.
+- **Flask**: For creating the web application.
+
 
